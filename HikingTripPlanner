@@ -1,1 +1,173 @@
+// HikingTripPlanner.cpp
+// GitHub repo: https://github.com/kristinaduh/HikingTripPlanner
+// A program to help plan a hiking trip by recommending packing items,
+// breaks, and an overall difficulty rating based on user inputs.
+// Compiles under C++17.
+
+#include <iostream>
+#include <vector>
+#include <string>
+#include <algorithm>
+#include <cctype>
+#include <limits>
+#include <cmath>
+
+// Convert a string to lowercase for case-insensitive comparison
+std::string toLower(const std::string& s) {
+    std::string out = s;
+    std::transform(out.begin(), out.end(), out.begin(),
+                   [](unsigned char c){ return std::tolower(c); });
+    return out;
+}
+
+// Prompt the user until they enter one of the valid options
+std::string getValidatedInput(const std::string& prompt,
+                              const std::vector<std::string>& validOptions) {
+    std::string input;
+    while (true) {
+        std::cout << prompt;
+        std::getline(std::cin, input);
+        input = toLower(input);
+        for (const auto& opt : validOptions) {
+            if (input == opt) {
+                return input;
+            }
+        }
+        std::cout << "Invalid input. Please enter one of:";
+        for (const auto& opt : validOptions) {
+            std::cout << " " << opt;
+        }
+        std::cout << "\n";
+    }
+}
+
+// Get trail type from user
+std::string getTrailType() {
+    static const std::vector<std::string> trails = {
+        "flat", "hilly", "forest", "desert"
+    };
+    return getValidatedInput(
+        "Enter trail type (flat, hilly, forest, desert): ",
+        trails
+    );
+}
+
+// Get weather from user
+std::string getWeather() {
+    static const std::vector<std::string> weathers = {
+        "hot", "cold", "sunny", "rainy"
+    };
+    return getValidatedInput(
+        "Enter weather (hot, cold, sunny, rainy): ",
+        weathers
+    );
+}
+
+// Get planned hike duration in hours (float or integer)
+double getDuration() {
+    double hrs = 0.0;
+    while (true) {
+        std::cout << "Enter planned hike duration in hours (e.g. 3 or 2.5): ";
+        if (std::cin >> hrs && hrs > 0.0) {
+            // consume leftover newline
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            return hrs;
+        }
+        std::cout << "Invalid duration. Please enter a positive number.\n";
+        std::cin.clear();
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    }
+}
+
+// Get fitness level from user
+std::string getFitnessLevel() {
+    static const std::vector<std::string> levels = {
+        "beginner", "intermediate", "advanced"
+    };
+    return getValidatedInput(
+        "Enter fitness level (beginner, intermediate, advanced): ",
+        levels
+    );
+}
+
+// Decide what to pack based on trail type and weather
+std::vector<std::string> decidePackingList(const std::string& trail,
+                                           const std::string& weather) {
+    std::vector<std::string> pack = {
+        "water bottle",
+        "snacks"
+    };
+
+    // Weather-based items
+    if (weather == "hot")    pack.push_back("sunscreen");
+    if (weather == "cold")   pack.push_back("warm layers");
+    if (weather == "rainy")  pack.push_back("rain jacket");
+    if (weather == "sunny")  pack.push_back("hat / sunglasses");
+
+    // Trail-based items
+    if (trail == "hilly")    pack.push_back("hiking poles");
+    if (trail == "forest")   pack.push_back("insect repellent");
+    if (trail == "desert") {
+        pack.push_back("extra water");
+        pack.push_back("wide-brimmed hat");
+    }
+
+    return pack;
+}
+
+// Calculate number of breaks: 1 per 2h for beginners, 3h for intermediates, 4h for advanced
+int calculateBreaks(double durationHours, const std::string& fitness) {
+    double interval = 2.0;  // default for beginner
+    if (fitness == "intermediate") interval = 3.0;
+    if (fitness == "advanced")     interval = 4.0;
+    // at least one break
+    return std::max(1, static_cast<int>(std::ceil(durationHours / interval)));
+}
+
+// Determine overall difficulty (easy / medium / hard) by scoring factors
+std::string determineDifficulty(double duration,
+                                const std::string& trail,
+                                const std::string& weather,
+                                const std::string& fitness) {
+    // Base score = duration
+    double score = duration;
+
+    // Add penalty for tougher trails and weather
+    if (trail == "hilly" || trail == "desert") score += 1.0;
+    if (weather == "hot"  || weather == "cold")  score += 1.0;
+
+    // Reduce score for advanced fitness
+    if (fitness == "advanced") score -= 1.0;
+
+    // Map to categories
+    if (score <= 3.0)      return "Easy";
+    else if (score <= 6.0) return "Medium";
+    else                   return "Hard";
+}
+
+int main() {
+    std::cout << "=== Hiking Trip Planner ===\n\n";
+
+    // 1. Gather inputs
+    std::string trail    = getTrailType();
+    std::string weather  = getWeather();
+    double      duration = getDuration();
+    std::string fitness  = getFitnessLevel();
+
+    // 2. Compute recommendations
+    auto packingList = decidePackingList(trail, weather);
+    int breaks       = calculateBreaks(duration, fitness);
+    std::string diff = determineDifficulty(duration, trail, weather, fitness);
+
+    // 3. Display results
+    std::cout << "\nPacking List:\n";
+    for (const auto& item : packingList) {
+        std::cout << " - " << item << "\n";
+    }
+
+    std::cout << "\nRecommended number of breaks: " << breaks << "\n";
+    std::cout << "Overall difficulty: " << diff << "\n";
+
+    return 0;
+}
 
